@@ -2,6 +2,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,13 +14,13 @@ import java.util.Scanner;
  */
 public class Main {
     // Base URL and API endpoints
-    private static final String BASE_URL = "https://dronesim.facets-labs.com";
+    private static final String BASE_URL = "http://dronesim.facets-labs.com";
     private static final String API_DRONES = "/api/drones/";
     private static final String API_DRONE_TYPES = "/api/dronetypes/";
     private static final String API_DRONE_DYNAMICS = "/api/dronedynamics/";
 
     // Authentication token
-    private static final String TOKEN = "Token 06a36f0d16c34735ba23a08de0fd6bf9e4d81e52 ";
+    private static final String TOKEN = "Token 06a36f0d16c34735ba23a08de0fd6bf9e4d81e52";
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
@@ -298,8 +299,8 @@ public class Main {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
         // Set request properties
-        connection.setRequestMethod("GET");
         connection.setRequestProperty("Authorization", TOKEN);
+        connection.setRequestMethod("GET");
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0");
 
         // Get response
