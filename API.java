@@ -6,69 +6,157 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Enhanced Drone Simulator Client with JSON Parsing
- * This implementation includes basic JSON parsing and better handling of pagination
+ * Enhanced Drone API Client with JSON parsing
+ * Interacts with three main endpoints: dronetypes, drones, and dronedynamics
  */
 public class API {
     // Base URL and API endpoints
     private static final String BASE_URL = "http://dronesim.facets-labs.com";
-    private static final String API_DRONES = "/api/drones/";
     private static final String API_DRONE_TYPES = "/api/dronetypes/";
+    private static final String API_DRONES = "/api/drones/";
     private static final String API_DRONE_DYNAMICS = "/api/dronedynamics/";
 
     // Authentication token
     private static final String TOKEN = "Token 06a36f0d16c34735ba23a08de0fd6bf9e4d81e52";
 
+    // Data Models
+    static class DroneType {
+        int id;
+        String manufacturer;
+        String typename;
+        double weight;
+        double maxSpeed;
+        double batteryCapacity;
+        double controlRange;
+        double maxCarriage;
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "DroneType ID: %d\n" +
+                            "  Manufacturer: %s\n" +
+                            "  Type Name: %s\n" +
+                            "  Weight: %.2f\n" +
+                            "  Max Speed: %.2f\n" +
+                            "  Battery Capacity: %.2f\n" +
+                            "  Control Range: %.2f\n" +
+                            "  Max Carriage: %.2f\n",
+                    id, manufacturer, typename, weight, maxSpeed, batteryCapacity, controlRange, maxCarriage
+            );
+        }
+    }
+
+    static class Drone {
+        int id;
+        String droneType;
+        String created;
+        String serialNumber;
+        double carriageWeight;
+        String carriageType;
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "Drone ID: %d\n" +
+                            "  Drone Type: %s\n" +
+                            "  Created: %s\n" +
+                            "  Serial Number: %s\n" +
+                            "  Carriage Weight: %.2f\n" +
+                            "  Carriage Type: %s\n",
+                    id, droneType, created, serialNumber, carriageWeight, carriageType
+            );
+        }
+    }
+
+    static class DroneDynamics {
+        String drone;
+        String timestamp;
+        double speed;
+        String alignRoll;
+        String alignPitch;
+        String alignYaw;
+        String longitude;
+        String latitude;
+        double batteryStatus;
+        String lastSeen;
+        String status;
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "Drone Dynamics:\n" +
+                            "  Drone: %s\n" +
+                            "  Timestamp: %s\n" +
+                            "  Speed: %.2f\n" +
+                            "  Align Roll: %s\n" +
+                            "  Align Pitch: %s\n" +
+                            "  Align Yaw: %s\n" +
+                            "  Longitude: %s\n" +
+                            "  Latitude: %s\n" +
+                            "  Battery Status: %.2f\n" +
+                            "  Last Seen: %s\n" +
+                            "  Status: %s\n",
+                    drone, timestamp, speed, alignRoll, alignPitch, alignYaw,
+                    longitude, latitude, batteryStatus, lastSeen, status
+            );
+        }
+    }
+
+    static class ApiResponse<T> {
+        int count;
+        String next;
+        String previous;
+        List<T> results;
+
+        ApiResponse() {
+            results = new ArrayList<>();
+        }
+    }
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
 
-        System.out.println("=== Enhanced Drone Simulator Client ===");
+        System.out.println("=== Enhanced Drone API Client ===");
 
         while (running) {
             System.out.println("\nSelect an option:");
-            System.out.println("1. List all drones");
-            System.out.println("2. Get drone details");
-            System.out.println("3. Get drone dynamics");
-            System.out.println("4. List drone types");
-            System.out.println("5. Display drone status summary");
-            System.out.println("6. Monitor drone in real-time");
-            System.out.println("7. Exit");
-            System.out.print("Enter your choice (1-7): ");
+            System.out.println("1. List drone types");
+            System.out.println("2. List drones");
+            System.out.println("3. Get specific drone details");
+            System.out.println("4. List drone dynamics");
+            System.out.println("5. Get specific drone dynamics");
+            System.out.println("6. Exit");
+            System.out.print("Enter your choice (1-6): ");
 
             int choice = scanner.nextInt();
             scanner.nextLine(); // Consume newline
 
             switch (choice) {
                 case 1:
-                    listAllDrones();
+                    getDroneTypes();
                     break;
                 case 2:
-                    System.out.print("Enter drone ID: ");
-                    String droneId = scanner.nextLine();
-                    getDroneDetails(droneId);
+                    getDrones();
                     break;
                 case 3:
                     System.out.print("Enter drone ID: ");
-                    String dynamicsDroneId = scanner.nextLine();
-                    getDroneDynamics(dynamicsDroneId);
+                    String droneId = scanner.nextLine();
+                    getSpecificDrone(droneId);
                     break;
                 case 4:
-                    listDroneTypes();
+                    getDroneDynamics();
                     break;
                 case 5:
-                    displayDroneStatusSummary();
+                    System.out.print("Enter drone ID for dynamics: ");
+                    String dynamicsId = scanner.nextLine();
+                    getSpecificDroneDynamics(dynamicsId);
                     break;
                 case 6:
-                    System.out.print("Enter drone ID to monitor: ");
-                    String monitorDroneId = scanner.nextLine();
-                    System.out.print("Monitoring duration in seconds: ");
-                    int duration = scanner.nextInt();
-                    monitorDroneInRealTime(monitorDroneId, duration);
-                    break;
-                case 7:
                     running = false;
                     System.out.println("Exiting the application. Goodbye!");
                     break;
@@ -81,130 +169,28 @@ public class API {
     }
 
     /**
-     * Retrieves a list of all drones with pagination support
+     * GET /api/dronetypes/
+     * Retrieves all drone types and parses them
      */
-    private static void listAllDrones() {
+    private static void getDroneTypes() {
         try {
-            String url = BASE_URL + API_DRONES + "?format=json";
-            List<String> drones = new ArrayList<>();
+            String url = BASE_URL + API_DRONE_TYPES + "?format=json";
+            String response = sendGetRequest(url);
 
-            // Handle pagination
-            boolean hasMorePages = true;
-            while (hasMorePages) {
-                String response = sendGetRequest(url);
+            System.out.println("\n=== DRONE TYPES ===");
 
-                // Extract drones from response
-                List<String> pageDrones = extractDronesFromJson(response);
-                drones.addAll(pageDrones);
+            ApiResponse<DroneType> apiResponse = parseDroneTypesResponse(response);
 
-                // Check for next page URL
-                String nextPageUrl = extractNextPageUrl(response);
-                if (nextPageUrl != null && !nextPageUrl.isEmpty()) {
-                    url = nextPageUrl;
-                } else {
-                    hasMorePages = false;
-                }
+            System.out.println("Total Count: " + apiResponse.count);
+            if (apiResponse.next != null) {
+                System.out.println("Next Page: " + apiResponse.next);
+            }
+            if (apiResponse.previous != null) {
+                System.out.println("Previous Page: " + apiResponse.previous);
             }
 
-            System.out.println("Found " + drones.size() + " drones");
-            for (String drone : drones) {
-                System.out.println(drone);
-            }
-
-        } catch (IOException e) {
-            System.out.println("Error fetching drone list: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Retrieves details for a specific drone
-     */
-    private static void getDroneDetails(String droneId) {
-        try {
-            String response = sendGetRequest(BASE_URL + API_DRONES + droneId + "/?format=json");
-
-            // Parse important drone details
-            String droneModelUrl = extractJsonValue(response, "drone_type");
-            String serialNumber = extractJsonValue(response, "serial_number");
-            String cargoWeight = extractJsonValue(response, "cargo_weight");
-            String maxSpeed = extractJsonValue(response, "max_speed");
-
-            System.out.println("\nDRONE DETAILS:");
-            System.out.println("ID: " + droneId);
-            System.out.println("Model: " + droneModelUrl);
-            System.out.println("Serial Number: " + serialNumber);
-            System.out.println("Cargo Weight: " + cargoWeight);
-            System.out.println("Maximum Speed: " + maxSpeed);
-
-            // Get additional information from the drone type
-            if (droneModelUrl != null && !droneModelUrl.isEmpty()) {
-                getDroneTypeInfo(droneModelUrl);
-            }
-
-        } catch (IOException e) {
-            System.out.println("Error fetching drone details: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Gets information about a drone type from its URL
-     */
-    private static void getDroneTypeInfo(String typeUrl) {
-        try {
-            String response = sendGetRequest(typeUrl + "?format=json");
-
-            String manufacturer = extractJsonValue(response, "manufacturer");
-            String model = extractJsonValue(response, "model");
-            String description = extractJsonValue(response, "description");
-
-            System.out.println("\nDRONE MODEL INFORMATION:");
-            System.out.println("Manufacturer: " + manufacturer);
-            System.out.println("Model: " + model);
-            System.out.println("Description: " + description);
-
-        } catch (IOException e) {
-            System.out.println("Error fetching drone type information: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Retrieves dynamic data for a specific drone
-     */
-    private static void getDroneDynamics(String droneId) {
-        try {
-            String response = sendGetRequest(BASE_URL + API_DRONE_DYNAMICS + droneId + "/?format=json");
-
-            // Parse dynamic data
-            String speed = extractJsonValue(response, "speed");
-            String latitude = extractJsonValue(response, "latitude");
-            String longitude = extractJsonValue(response, "longitude");
-            String batteryStatus = extractJsonValue(response, "battery_status");
-            String lastSeen = extractJsonValue(response, "last_seen");
-            String status = extractJsonValue(response, "status");
-
-            System.out.println("\nDRONE DYNAMICS:");
-            System.out.println("ID: " + droneId);
-            System.out.println("Speed: " + speed);
-            System.out.println("Position: " + latitude + ", " + longitude);
-            System.out.println("Battery: " + batteryStatus);
-            System.out.println("Last Seen: " + lastSeen);
-            System.out.println("Status: " + status);
-
-        } catch (IOException e) {
-            System.out.println("Error fetching drone dynamics: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Retrieves a list of all drone types
-     */
-    private static void listDroneTypes() {
-        try {
-            String response = sendGetRequest(BASE_URL + API_DRONE_TYPES + "?format=json");
-            List<String> droneTypes = extractDroneTypesFromJson(response);
-
-            System.out.println("\nAVAILABLE DRONE TYPES:");
-            for (String droneType : droneTypes) {
+            System.out.println("\nDrone Types:");
+            for (DroneType droneType : apiResponse.results) {
                 System.out.println(droneType);
             }
 
@@ -214,84 +200,277 @@ public class API {
     }
 
     /**
-     * Displays a summary of all drones and their current status
+     * GET /api/drones/
+     * Retrieves all drones and parses them
      */
-    private static void displayDroneStatusSummary() {
+    private static void getDrones() {
         try {
-            String response = sendGetRequest(BASE_URL + API_DRONES + "?format=json");
-            List<String> droneIds = extractDroneIdsFromJson(response);
+            String url = BASE_URL + API_DRONES + "?format=json";
+            String response = sendGetRequest(url);
 
-            System.out.println("\nDRONE STATUS SUMMARY:");
-            System.out.println("------------------------------------------------------------");
-            System.out.printf("%-5s %-15s %-10s %-10s %-10s\n", "ID", "Status", "Battery", "Speed", "Last Seen");
-            System.out.println("------------------------------------------------------------");
+            System.out.println("\n=== DRONES ===");
 
-            for (String droneId : droneIds) {
-                String dynamicsResponse = sendGetRequest(BASE_URL + API_DRONE_DYNAMICS + droneId + "/?format=json");
+            ApiResponse<Drone> apiResponse = parseDronesResponse(response);
 
-                String status = extractJsonValue(dynamicsResponse, "status");
-                String battery = extractJsonValue(dynamicsResponse, "battery_status");
-                String speed = extractJsonValue(dynamicsResponse, "speed");
-                String lastSeen = extractJsonValue(dynamicsResponse, "last_seen");
+            System.out.println("Total Count: " + apiResponse.count);
+            if (apiResponse.next != null) {
+                System.out.println("Next Page: " + apiResponse.next);
+            }
+            if (apiResponse.previous != null) {
+                System.out.println("Previous Page: " + apiResponse.previous);
+            }
 
-                // Format the last seen timestamp
-                if (lastSeen != null && lastSeen.length() > 16) {
-                    lastSeen = lastSeen.substring(0, 16);
-                }
-
-                System.out.printf("%-5s %-15s %-10s %-10s %-10s\n",
-                        droneId, status, battery, speed, lastSeen);
+            System.out.println("\nDrones:");
+            for (Drone drone : apiResponse.results) {
+                System.out.println(drone);
             }
 
         } catch (IOException e) {
-            System.out.println("Error creating status summary: " + e.getMessage());
+            System.out.println("Error fetching drones: " + e.getMessage());
         }
     }
 
     /**
-     * Monitors a drone in real-time for a specified duration
+     * GET /api/drones/{id}/
+     * Retrieves a specific drone by ID and parses it
      */
-    private static void monitorDroneInRealTime(String droneId, int durationSeconds) {
-        System.out.println("\nMonitoring drone " + droneId + " for " + durationSeconds + " seconds...");
-        System.out.println("Press Ctrl+C to stop monitoring early.");
-
-        long startTime = System.currentTimeMillis();
-        long endTime = startTime + (durationSeconds * 1000);
-
+    private static void getSpecificDrone(String droneId) {
         try {
-            while (System.currentTimeMillis() < endTime) {
-                // Get the latest dynamic data
-                String response = sendGetRequest(BASE_URL + API_DRONE_DYNAMICS + droneId + "/?format=json");
+            String url = BASE_URL + API_DRONES + droneId + "/?format=json";
+            String response = sendGetRequest(url);
 
-                String speed = extractJsonValue(response, "speed");
-                String latitude = extractJsonValue(response, "latitude");
-                String longitude = extractJsonValue(response, "longitude");
-                String battery = extractJsonValue(response, "battery_status");
-                String status = extractJsonValue(response, "status");
+            System.out.println("\n=== DRONE DETAILS (ID: " + droneId + ") ===");
 
-                // Clear console and display updated info
-                clearConsole();
-                System.out.println("REAL-TIME MONITORING - DRONE " + droneId);
-                System.out.println("-----------------------------");
-                System.out.println("Status: " + status);
-                System.out.println("Battery: " + battery);
-                System.out.println("Speed: " + speed);
-                System.out.println("Position: " + latitude + ", " + longitude);
-                System.out.println("-----------------------------");
+            Drone drone = parseSingleDrone(response);
+            System.out.println(drone);
 
-                // Wait before next update
-                Thread.sleep(2000); // Update every 2 seconds
+        } catch (IOException e) {
+            System.out.println("Error fetching drone details: " + e.getMessage());
+        }
+    }
+
+    /**
+     * GET /api/dronedynamics/
+     * Retrieves all drone dynamics and parses them
+     */
+    private static void getDroneDynamics() {
+        try {
+            String url = BASE_URL + API_DRONE_DYNAMICS + "?format=json";
+            String response = sendGetRequest(url);
+
+            System.out.println("\n=== DRONE DYNAMICS ===");
+
+            ApiResponse<DroneDynamics> apiResponse = parseDroneDynamicsResponse(response);
+
+            System.out.println("Total Count: " + apiResponse.count);
+            if (apiResponse.next != null) {
+                System.out.println("Next Page: " + apiResponse.next);
+            }
+            if (apiResponse.previous != null) {
+                System.out.println("Previous Page: " + apiResponse.previous);
             }
 
-            System.out.println("\nMonitoring complete.");
+            System.out.println("\nDrone Dynamics:");
+            for (DroneDynamics dynamics : apiResponse.results) {
+                System.out.println(dynamics);
+            }
 
-        } catch (IOException | InterruptedException e) {
-            System.out.println("Error during monitoring: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Error fetching drone dynamics: " + e.getMessage());
         }
     }
 
     /**
-     * Sends an HTTP GET request with proper authentication
+     * GET /api/dronedynamics/{id}/
+     * Retrieves specific drone dynamics by ID and parses them
+     */
+    private static void getSpecificDroneDynamics(String droneId) {
+        try {
+            String url = BASE_URL + API_DRONE_DYNAMICS + droneId + "/?format=json";
+            String response = sendGetRequest(url);
+
+            System.out.println("\n=== DRONE DYNAMICS (ID: " + droneId + ") ===");
+
+            DroneDynamics dynamics = parseSingleDroneDynamics(response);
+            System.out.println(dynamics);
+
+        } catch (IOException e) {
+            System.out.println("Error fetching drone dynamics: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Parse drone types response
+     */
+    private static ApiResponse<DroneType> parseDroneTypesResponse(String json) {
+        ApiResponse<DroneType> response = new ApiResponse<>();
+
+        // Parse count
+        response.count = extractInt(json, "\"count\":\\s*(\\d+)");
+
+        // Parse next and previous URLs
+        response.next = extractString(json, "\"next\":\\s*\"([^\"]+)\"");
+        response.previous = extractString(json, "\"previous\":\\s*\"([^\"]+)\"");
+
+        // Parse results array
+        Pattern resultsPattern = Pattern.compile("\"results\":\\s*\\[(.*?)\\]", Pattern.DOTALL);
+        Matcher resultsMatcher = resultsPattern.matcher(json);
+
+        if (resultsMatcher.find()) {
+            String resultsContent = resultsMatcher.group(1);
+            Pattern objectPattern = Pattern.compile("\\{([^{}]+(?:\\{[^{}]*\\}[^{}]*)*)\\}");
+            Matcher objectMatcher = objectPattern.matcher(resultsContent);
+
+            while (objectMatcher.find()) {
+                String objectJson = "{" + objectMatcher.group(1) + "}";
+                DroneType droneType = parseDroneType(objectJson);
+                response.results.add(droneType);
+            }
+        }
+
+        return response;
+    }
+
+    /**
+     * Parse single drone type object
+     */
+    private static DroneType parseDroneType(String json) {
+        DroneType droneType = new DroneType();
+        droneType.id = extractInt(json, "\"id\":\\s*(\\d+)");
+        droneType.manufacturer = extractString(json, "\"manufacturer\":\\s*\"([^\"]+)\"");
+        droneType.typename = extractString(json, "\"typename\":\\s*\"([^\"]+)\"");
+        droneType.weight = extractDouble(json, "\"weight\":\\s*([\\d.]+)");
+        droneType.maxSpeed = extractDouble(json, "\"max_speed\":\\s*([\\d.]+)");
+        droneType.batteryCapacity = extractDouble(json, "\"battery_capacity\":\\s*([\\d.]+)");
+        droneType.controlRange = extractDouble(json, "\"control_range\":\\s*([\\d.]+)");
+        droneType.maxCarriage = extractDouble(json, "\"max_carriage\":\\s*([\\d.]+)");
+        return droneType;
+    }
+
+    /**
+     * Parse drones response
+     */
+    private static ApiResponse<Drone> parseDronesResponse(String json) {
+        ApiResponse<Drone> response = new ApiResponse<>();
+
+        response.count = extractInt(json, "\"count\":\\s*(\\d+)");
+        response.next = extractString(json, "\"next\":\\s*\"([^\"]+)\"");
+        response.previous = extractString(json, "\"previous\":\\s*\"([^\"]+)\"");
+
+        Pattern resultsPattern = Pattern.compile("\"results\":\\s*\\[(.*?)\\]", Pattern.DOTALL);
+        Matcher resultsMatcher = resultsPattern.matcher(json);
+
+        if (resultsMatcher.find()) {
+            String resultsContent = resultsMatcher.group(1);
+            Pattern objectPattern = Pattern.compile("\\{([^{}]+(?:\\{[^{}]*\\}[^{}]*)*)\\}");
+            Matcher objectMatcher = objectPattern.matcher(resultsContent);
+
+            while (objectMatcher.find()) {
+                String objectJson = "{" + objectMatcher.group(1) + "}";
+                Drone drone = parseDrone(objectJson);
+                response.results.add(drone);
+            }
+        }
+
+        return response;
+    }
+
+    /**
+     * Parse single drone object
+     */
+    private static Drone parseDrone(String json) {
+        Drone drone = new Drone();
+        drone.id = extractInt(json, "\"id\":\\s*(\\d+)");
+        drone.droneType = extractString(json, "\"dronetype\":\\s*\"([^\"]+)\"");
+        drone.created = extractString(json, "\"created\":\\s*\"([^\"]+)\"");
+        drone.serialNumber = extractString(json, "\"serialnumber\":\\s*\"([^\"]+)\"");
+        drone.carriageWeight = extractDouble(json, "\"carriage_weight\":\\s*([\\d.]+)");
+        drone.carriageType = extractString(json, "\"carriage_type\":\\s*\"([^\"]+)\"");
+        return drone;
+    }
+
+    /**
+     * Parse single drone from individual endpoint
+     */
+    private static Drone parseSingleDrone(String json) {
+        return parseDrone(json);
+    }
+
+    /**
+     * Parse drone dynamics response
+     */
+    private static ApiResponse<DroneDynamics> parseDroneDynamicsResponse(String json) {
+        ApiResponse<DroneDynamics> response = new ApiResponse<>();
+
+        response.count = extractInt(json, "\"count\":\\s*(\\d+)");
+        response.next = extractString(json, "\"next\":\\s*\"([^\"]+)\"");
+        response.previous = extractString(json, "\"previous\":\\s*\"([^\"]+)\"");
+
+        Pattern resultsPattern = Pattern.compile("\"results\":\\s*\\[(.*?)\\]", Pattern.DOTALL);
+        Matcher resultsMatcher = resultsPattern.matcher(json);
+
+        if (resultsMatcher.find()) {
+            String resultsContent = resultsMatcher.group(1);
+            Pattern objectPattern = Pattern.compile("\\{([^{}]+(?:\\{[^{}]*\\}[^{}]*)*)\\}");
+            Matcher objectMatcher = objectPattern.matcher(resultsContent);
+
+            while (objectMatcher.find()) {
+                String objectJson = "{" + objectMatcher.group(1) + "}";
+                DroneDynamics dynamics = parseDroneDynamics(objectJson);
+                response.results.add(dynamics);
+            }
+        }
+
+        return response;
+    }
+
+    /**
+     * Parse single drone dynamics object
+     */
+    private static DroneDynamics parseDroneDynamics(String json) {
+        DroneDynamics dynamics = new DroneDynamics();
+        dynamics.drone = extractString(json, "\"drone\":\\s*\"([^\"]+)\"");
+        dynamics.timestamp = extractString(json, "\"timestamp\":\\s*\"([^\"]+)\"");
+        dynamics.speed = extractDouble(json, "\"speed\":\\s*([\\d.]+)");
+        dynamics.alignRoll = extractString(json, "\"align_roll\":\\s*\"([^\"]+)\"");
+        dynamics.alignPitch = extractString(json, "\"align_pitch\":\\s*\"([^\"]+)\"");
+        dynamics.alignYaw = extractString(json, "\"align_yaw\":\\s*\"([^\"]+)\"");
+        dynamics.longitude = extractString(json, "\"longitude\":\\s*\"([^\"]+)\"");
+        dynamics.latitude = extractString(json, "\"latitude\":\\s*\"([^\"]+)\"");
+        dynamics.batteryStatus = extractDouble(json, "\"battery_status\":\\s*([\\d.]+)");
+        dynamics.lastSeen = extractString(json, "\"last_seen\":\\s*\"([^\"]+)\"");
+        dynamics.status = extractString(json, "\"status\":\\s*\"([^\"]+)\"");
+        return dynamics;
+    }
+
+    /**
+     * Parse single drone dynamics from individual endpoint
+     */
+    private static DroneDynamics parseSingleDroneDynamics(String json) {
+        return parseDroneDynamics(json);
+    }
+
+    // Utility methods for parsing JSON values
+    private static String extractString(String json, String pattern) {
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(json);
+        return m.find() ? m.group(1) : "";
+    }
+
+    private static int extractInt(String json, String pattern) {
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    private static double extractDouble(String json, String pattern) {
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(json);
+        return m.find() ? Double.parseDouble(m.group(1)) : 0.0;
+    }
+
+    /**
+     * Sends an HTTP GET request with authentication
      */
     private static String sendGetRequest(String urlString) throws IOException {
         URL url = new URL(urlString);
@@ -300,10 +479,12 @@ public class API {
         // Set request properties
         connection.setRequestProperty("Authorization", TOKEN);
         connection.setRequestMethod("GET");
+        connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0");
 
         // Get response
         int responseCode = connection.getResponseCode();
+        System.out.println("Response Code: " + responseCode);
 
         if (responseCode == HttpURLConnection.HTTP_OK) {
             BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -317,268 +498,17 @@ public class API {
 
             return response.toString();
         } else {
-            throw new IOException("HTTP Error: " + responseCode);
-        }
-    }
+            // Try to read error response
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
+            StringBuilder errorResponse = new StringBuilder();
+            String errorLine;
 
-    // --- JSON Parsing Helper Methods ---
-    // Note: In a real application, use a proper JSON library like Jackson or Gson
-
-    /**
-     * Extracts a simple value from a JSON string
-     */
-    private static String extractJsonValue(String json, String key) {
-        String searchKey = "\"" + key + "\":";
-        int keyIndex = json.indexOf(searchKey);
-
-        if (keyIndex == -1) {
-            return "N/A";
-        }
-
-        int valueStart = keyIndex + searchKey.length();
-        char firstChar = json.charAt(valueStart);
-
-        if (firstChar == '"') {
-            // String value
-            int valueEnd = json.indexOf("\"", valueStart + 1);
-            return json.substring(valueStart + 1, valueEnd);
-        } else {
-            // Numeric or boolean value
-            int commaIndex = json.indexOf(",", valueStart);
-            int braceIndex = json.indexOf("}", valueStart);
-
-            int valueEnd = (commaIndex != -1 && commaIndex < braceIndex) ? commaIndex : braceIndex;
-            return json.substring(valueStart, valueEnd).trim();
-        }
-    }
-
-    /**
-     * Extracts the next page URL from a paginated response
-     */
-    private static String extractNextPageUrl(String json) {
-        String nextKey = "\"next\":";
-        int nextIndex = json.indexOf(nextKey);
-
-        if (nextIndex == -1) {
-            return null;
-        }
-
-        int urlStart = nextIndex + nextKey.length();
-        char firstChar = json.charAt(urlStart);
-
-        if (firstChar == 'n') {
-            // "next": null
-            return null;
-        } else if (firstChar == '"') {
-            // "next": "http://..."
-            int urlEnd = json.indexOf("\"", urlStart + 1);
-            return json.substring(urlStart + 1, urlEnd);
-        }
-
-        return null;
-    }
-
-    /**
-     * Extracts drone information from a JSON response
-     */
-    private static List<String> extractDronesFromJson(String json) {
-        List<String> drones = new ArrayList<>();
-
-        // Very basic extraction - in a real app, use a proper JSON parser
-        int resultsStart = json.indexOf("\"results\":");
-        if (resultsStart == -1) {
-            return drones;
-        }
-
-        int arrayStart = json.indexOf("[", resultsStart);
-        int arrayEnd = findMatchingBracket(json, arrayStart);
-
-        if (arrayStart == -1 || arrayEnd == -1) {
-            return drones;
-        }
-
-        String resultsArray = json.substring(arrayStart + 1, arrayEnd);
-
-        // Split the array by objects
-        int startIndex = 0;
-        int nestingLevel = 0;
-
-        for (int i = 0; i < resultsArray.length(); i++) {
-            char c = resultsArray.charAt(i);
-
-            if (c == '{') {
-                if (nestingLevel == 0) {
-                    startIndex = i;
-                }
-                nestingLevel++;
-            } else if (c == '}') {
-                nestingLevel--;
-                if (nestingLevel == 0) {
-                    String droneObject = resultsArray.substring(startIndex, i + 1);
-
-                    // Extract drone ID and URL
-                    String id = extractJsonValue(droneObject, "id");
-                    String url = extractJsonValue(droneObject, "url");
-
-                    drones.add("Drone #" + id + " - " + url);
-                }
+            while ((errorLine = errorReader.readLine()) != null) {
+                errorResponse.append(errorLine);
             }
-        }
+            errorReader.close();
 
-        return drones;
-    }
-
-    /**
-     * Extracts drone type information from a JSON response
-     */
-    private static List<String> extractDroneTypesFromJson(String json) {
-        List<String> droneTypes = new ArrayList<>();
-
-        // Very basic extraction - in a real app, use a proper JSON parser
-        int resultsStart = json.indexOf("\"results\":");
-        if (resultsStart == -1) {
-            return droneTypes;
-        }
-
-        int arrayStart = json.indexOf("[", resultsStart);
-        int arrayEnd = findMatchingBracket(json, arrayStart);
-
-        if (arrayStart == -1 || arrayEnd == -1) {
-            return droneTypes;
-        }
-
-        String resultsArray = json.substring(arrayStart + 1, arrayEnd);
-
-        // Split the array by objects
-        int startIndex = 0;
-        int nestingLevel = 0;
-
-        for (int i = 0; i < resultsArray.length(); i++) {
-            char c = resultsArray.charAt(i);
-
-            if (c == '{') {
-                if (nestingLevel == 0) {
-                    startIndex = i;
-                }
-                nestingLevel++;
-            } else if (c == '}') {
-                nestingLevel--;
-                if (nestingLevel == 0) {
-                    String typeObject = resultsArray.substring(startIndex, i + 1);
-
-                    // Extract type information
-                    String manufacturer = extractJsonValue(typeObject, "manufacturer");
-                    String model = extractJsonValue(typeObject, "model");
-
-                    droneTypes.add(manufacturer + " - " + model);
-                }
-            }
-        }
-
-        return droneTypes;
-    }
-
-    /**
-     * Extracts drone IDs from a JSON response
-     */
-    private static List<String> extractDroneIdsFromJson(String json) {
-        List<String> droneIds = new ArrayList<>();
-
-        // Very basic extraction - in a real app, use a proper JSON parser
-        int resultsStart = json.indexOf("\"results\":");
-        if (resultsStart == -1) {
-            return droneIds;
-        }
-
-        int arrayStart = json.indexOf("[", resultsStart);
-        int arrayEnd = findMatchingBracket(json, arrayStart);
-
-        if (arrayStart == -1 || arrayEnd == -1) {
-            return droneIds;
-        }
-
-        String resultsArray = json.substring(arrayStart + 1, arrayEnd);
-
-        // Split the array by objects
-        int startIndex = 0;
-        int nestingLevel = 0;
-
-        for (int i = 0; i < resultsArray.length(); i++) {
-            char c = resultsArray.charAt(i);
-
-            if (c == '{') {
-                if (nestingLevel == 0) {
-                    startIndex = i;
-                }
-                nestingLevel++;
-            } else if (c == '}') {
-                nestingLevel--;
-                if (nestingLevel == 0) {
-                    String droneObject = resultsArray.substring(startIndex, i + 1);
-
-                    // Extract drone ID
-                    String id = extractJsonValue(droneObject, "id");
-                    if (!id.equals("N/A")) {
-                        droneIds.add(id);
-                    }
-                }
-            }
-        }
-
-        return droneIds;
-    }
-
-    /**
-     * Finds the matching closing bracket for an opening bracket
-     */
-    private static int findMatchingBracket(String text, int openBracketIndex) {
-        char openBracket = text.charAt(openBracketIndex);
-        char closeBracket;
-
-        if (openBracket == '[') {
-            closeBracket = ']';
-        } else if (openBracket == '{') {
-            closeBracket = '}';
-        } else {
-            return -1;
-        }
-
-        int nestingLevel = 1;
-
-        for (int i = openBracketIndex + 1; i < text.length(); i++) {
-            char c = text.charAt(i);
-
-            if (c == openBracket) {
-                nestingLevel++;
-            } else if (c == closeBracket) {
-                nestingLevel--;
-                if (nestingLevel == 0) {
-                    return i;
-                }
-            }
-        }
-
-        return -1;
-    }
-
-    /**
-     * Clears the console (works on most terminals)
-     */
-    private static void clearConsole() {
-        try {
-            String operatingSystem = System.getProperty("os.name");
-
-            if (operatingSystem.contains("Windows")) {
-                new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
-            } else {
-                System.out.print("\033[H\033[2J");
-                System.out.flush();
-            }
-        } catch (Exception e) {
-            // If clearing fails, just print newlines
-            for (int i = 0; i < 50; i++) {
-                System.out.println();
-            }
+            throw new IOException("HTTP Error " + responseCode + ": " + errorResponse.toString());
         }
     }
 }
