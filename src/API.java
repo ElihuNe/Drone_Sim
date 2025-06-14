@@ -138,7 +138,7 @@ public class API {
                     getDroneTypes();
                     break;
                 case 4:
-                    getDroneDynamics();
+                    getDroneDynamics(1);
                     break;
                 case 5:
                     running = false;
@@ -148,32 +148,44 @@ public class API {
         scanner.close();
     }
 
-    private static void getDroneTypes() {
+    public static List<DroneType> getDroneTypes() {
         try {
             String currentUrl = BASE_URL + API_DRONE_TYPES + "?format=json";
+            List<DroneType> lastResponse = new ArrayList<>();
             while (currentUrl != null && !currentUrl.isEmpty()) {
                 String response = sendGetRequest(currentUrl);
                 ApiResponse<DroneType> apiResponse = parseDroneTypesResponse(response);
-                for (DroneType droneType : apiResponse.results) {
-                    System.out.println(droneType);
+                for(DroneType droneType : apiResponse.results) {
+                    lastResponse.add(droneType);
                 }
+                /*for (DroneType droneType : apiResponse.results) {
+                    System.out.println(droneType);
+                }*/
                 currentUrl = apiResponse.next;
             }
+            return lastResponse;
         } catch (IOException e) {}
+        return null;
     }
 
-    private static void getDrones() {
+    public static List<Drone> getDrones() {
         try {
             String currentUrl = BASE_URL + API_DRONES + "?format=json";
+            List<Drone> lastResponse = new ArrayList<>();
             while (currentUrl != null && !currentUrl.isEmpty()) {
                 String response = sendGetRequest(currentUrl);
                 ApiResponse<Drone> apiResponse = parseDronesResponse(response);
                 for (Drone drone : apiResponse.results) {
-                    System.out.println(drone);
+                    lastResponse.add(drone);
                 }
+                /*for (Drone drone : apiResponse.results) {
+                    System.out.println(drone);
+                }*/
                 currentUrl = apiResponse.next;
             }
+            return lastResponse;
         } catch (IOException e) {}
+        return null;
     }
 
     private static void getSpecificDrone(String droneId) {
@@ -185,18 +197,24 @@ public class API {
         } catch (IOException e) {}
     }
 
-    private static void getDroneDynamics() {
+    public static List<DroneDynamics> getDroneDynamics(int PageNum) {
+        int i = 0;
         try {
             String currentUrl = BASE_URL + API_DRONE_DYNAMICS + "?format=json";
-            while (currentUrl != null && !currentUrl.isEmpty()) {
+            List<DroneDynamics> lastResponse = null;
+            while (currentUrl != null && !currentUrl.isEmpty() && i < PageNum) {
                 String response = sendGetRequest(currentUrl);
                 ApiResponse<DroneDynamics> apiResponse = parseDroneDynamicsResponse(response);
-                for (DroneDynamics dynamics : apiResponse.results) {
+                /*for (DroneDynamics dynamics : apiResponse.results) {
                     System.out.println(dynamics);
-                }
+                }*/
                 currentUrl = apiResponse.next;
+                lastResponse = apiResponse.results;
+                i++;
             }
+            return lastResponse;
         } catch (IOException e) {}
+        return null;
     }
 
     private static ApiResponse<DroneType> parseDroneTypesResponse(String json) {
