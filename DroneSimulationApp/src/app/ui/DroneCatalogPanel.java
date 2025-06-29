@@ -22,7 +22,7 @@ public class DroneCatalogPanel extends JPanel {
         title.setFont(new Font("Arial", Font.BOLD, 18));
         add(title, BorderLayout.NORTH);
 
-        List<DroneType>  droneTypes= DataRepository.getInstance().getAllDroneTypes();
+        List<DroneType> droneTypes= DataRepository.getInstance().getAllDroneTypes();
 
         String[] cols = {"ID", "Manufacturer", "Typename"};
         DefaultTableModel model = new DefaultTableModel(cols, 0);
@@ -49,11 +49,7 @@ public class DroneCatalogPanel extends JPanel {
         };
         add(new JScrollPane(table), BorderLayout.WEST);
 
-        for (DroneType d : droneTypes) {
-            model.addRow(new Object[]{
-                    d.getId(), d.getManufacturer(), d.getTypename()
-            });
-        }
+        loadData(droneTypes, model);
 
         String[] cols2 = {"Created", "Serialnumber", "Carriage Weight", "Carriage Type"};
         DefaultTableModel model2 = new DefaultTableModel(cols2, 0);
@@ -86,9 +82,24 @@ public class DroneCatalogPanel extends JPanel {
             }
         });
 
-
         JButton backBtn = new JButton("Back");
         backBtn.addActionListener(e -> frame.showPanel("home"));
         add(backBtn, BorderLayout.SOUTH);
+
+        JButton refreshBtn = new JButton("Refresh");
+        refreshBtn.addActionListener(e -> {
+            loadData(droneTypes, model);
+        });
+        add(refreshBtn, BorderLayout.NORTH);
     }
+
+    private static void loadData(List<DroneType> droneTypes, DefaultTableModel model){
+        model.setRowCount(0);
+        for (DroneType d : droneTypes) {
+            model.addRow(new Object[]{
+                    d.getId(), d.getManufacturer(), d.getTypename()
+            });
+        }
+    }
+
 }

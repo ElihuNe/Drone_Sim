@@ -34,12 +34,14 @@ public class FlightDynamicsPanel extends JPanel {
         JButton prev = new JButton("Previous");
         JButton next = new JButton("Next");
         JButton back = new JButton("Back");
+        JButton refreshBtn = new JButton("Refresh");
 
         JPanel navPanel = new JPanel();
         navPanel.add(back);
         navPanel.add(prev);
         navPanel.add(next);
         add(navPanel, BorderLayout.SOUTH);
+        add(refreshBtn, BorderLayout.NORTH);
 
         prev.addActionListener(e -> {
             if (page >= 1) page--;
@@ -69,6 +71,11 @@ public class FlightDynamicsPanel extends JPanel {
                     }
                 }
             }
+        });
+
+        refreshBtn.addActionListener(e -> {
+            page = 0;
+            loadData();
         });
 
         loadData();
