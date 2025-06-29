@@ -34,6 +34,13 @@ public class ConfigPanel extends JPanel {
 
         add(center, BorderLayout.CENTER);
 
+        rememberBox.addActionListener(e -> {
+            if (rememberBox.isSelected()) {
+                urlField.setText(Constants.BASE_URL);
+                tokenField.setText(Constants.TOKEN);
+            }
+        });
+
         loginButton.addActionListener(e -> {
             String url = urlField.getText().trim();
             String token = tokenField.getText().trim();
