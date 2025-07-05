@@ -36,19 +36,22 @@ The main goal was to build a GUI-based Java application that demonstrates key co
 
 1. *Start the program* by running Main.java in your IDE.
 2. *Enter your API token* and the base URL (e.g., https://dronesim.facets-labs.com/api/) in the Configuration Panel.
-3. *Click on "Save Configuration"* to enable API communication.
+3. *Click on "Login"* to enable API communication.
 4. Use the following tabs to navigate through the application:
 
    - *Drone Catalog*  
-     View a list of all drone models, including manufacturer, max speed, etc.
+      View a list of all drone type models.
+      View extra Information by hovering over a Drone name
+      click on any drone type to see the corresponding available drones
 
    - *Drone Dashboard*  
-     See all active drones with their current state, battery status, and derived values like flight time or cargo weight.
+     See all active drones with distributive data of Avg. Speed, Carriage Weight, Batteriy Distribution and most common drones
+     Either in general for all drone types or for specific drone types that you can select through the drop-down menu.
 
    - *Flight Dynamics*  
-     Select an individual drone and view real-time data such as speed, alignment (roll, pitch, yaw), battery voltage, and GPS location. Data is loaded per page to reduce load.
+     Displays all dynamic data for every drone in occurring order.
 
-5. *Refresh: You can click the "Refresh" button to update the data or enable **auto-refresh* to pull data at regular intervals.
+5. *Refresh: You can click the "Refresh" button refresh the data and start from the beginning.
 6. If you need to change the token or URL later, simply restart the application.
 
 ---
@@ -80,10 +83,10 @@ app
 │ └── API.java # API connection and token-based authentication
 ├── data/
 │ ├── DataRepository.java # Central data handler
+│ ├── FlightData.java # Data handler for droneDynamics
 │ └── IDataProvider.java # Interface for data sources
 ├── logic/
-│ ├── DataAggregator.java # Calculates derived statistics
-│ └── DroneFilter.java # Filtering utility
+│ └──DataAggregator.java # Calculates derived statistics
 ├── model/
 │ ├── Drone.java
 │ ├── DroneType.java
@@ -96,7 +99,6 @@ app
 │ ├── HomePanel.java
 │ └── MainFrame.java # Main window and navigation
 └── util/
-├── AppException.java # Custom exception class
-├── ChartUtils.java # Graphical utilities (e.g. speed charts)
-├── Constants.java # API base URL and config settings
-└── StyleUtil.java # GUI styling and look-and-feel helpers
+│ ├── AppException.java # Custom exception class
+│ ├── ChartUtils.java # Graphical utilities (e.g. speed charts)
+│ └──  Constants.java # API base URL and config settings
