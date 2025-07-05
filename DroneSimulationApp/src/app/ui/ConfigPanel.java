@@ -4,6 +4,11 @@ import app.util.Constants;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.FileWriter;
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+
 
 /** Panel for entering API URL and token. */
 public class ConfigPanel extends JPanel {
@@ -40,6 +45,11 @@ public class ConfigPanel extends JPanel {
             if (rememberBox.isSelected()) {
                 urlField.setText(Constants.BASE_URL);
                 tokenField.setText(Constants.TOKEN);
+                try (FileWriter fw = new FileWriter("data.txt")) {
+                    fw.write(urlField.getText().trim() + ";" + tokenField.getText().trim() + "\n");
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
             }
         });
 
@@ -47,6 +57,16 @@ public class ConfigPanel extends JPanel {
         loginButton.addActionListener(e -> {
             String url = urlField.getText().trim();
             String token = tokenField.getText().trim();
+            try (BufferedReader br = new BufferedReader(new FileReader("data.txt"))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    String[] parts = line.split(";");
+                    url = parts[0];
+                    token = parts[1];
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
 
             Constants.BASE_URL = url;
             Constants.TOKEN = token;
