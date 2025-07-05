@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
+import java.util.function.Consumer;
+
 import org.json.*;
 
 import app.model.Drone;
@@ -11,6 +13,8 @@ import app.model.DroneDynamics;
 import app.model.DroneType;
 import app.util.AppException;
 import app.util.Constants;
+
+import javax.swing.*;
 
 public class API {
 
@@ -51,17 +55,6 @@ public class API {
             nextUrl = root.optString("next", null);
         }
         return result;
-    }
-
-    /** Fetch a single DroneType by its URL
-     *
-     * @param url URL of the DroneType
-     * @return DroneType object
-     */
-    public static DroneType getDroneTypeInstance(String url){
-        String json = fetchJson(url);
-        JSONObject root = new JSONObject(json);
-        return new DroneType(root);
     }
 
     /** Fetch exactly one “page” of DroneDynamics (10 items per page)
